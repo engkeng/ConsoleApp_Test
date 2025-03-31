@@ -1,0 +1,27 @@
+# .NET
+bin/
+obj/
+
+# User-specific files
+.vs/
+.vscode/
+.idea/
+
+# Windows specific files
+Thumbs.db
+Desktop.ini
+
+# JetBrains Rider settings
+.idea/
+
+# VS Code settings
+.vscode/
+
+# ASP.NET Core specific files
+appsettings.json
+
+# Other Visual Studio files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
