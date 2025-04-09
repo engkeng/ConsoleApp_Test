@@ -21,6 +21,9 @@ namespace ConsoleApp_Test
         {
             //string soapServiceUrl = "http://www.dneonline.com/calculator.asmx"; // SOAP endpoint
             //string soapAction = "http://www.dneonline.com/calculator.asmx?op=Add"; // SOAP action
+            string userInput2;
+            string response;
+            string response2;
 
             string userDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);            
 
@@ -31,6 +34,21 @@ namespace ConsoleApp_Test
 
             Console.WriteLine("Enter the File name of your CSV File (Example: Book1.csv) :");
             var userInput = Console.ReadLine();
+
+            Console.WriteLine("Which BCRM Environment do you want to check? (ISQ/ IST): ");
+            while (true)
+            {
+                userInput2 = Console.ReadLine().ToUpper(); // Convert to uppercase for consistency
+
+                if (userInput2 == "ISQ" || userInput2 == "IST")
+                {
+                    break; // Exit the loop if the input is valid
+                }
+                else
+                {
+                    Console.WriteLine("Invalid input. Please enter either 'ISQ' or 'IST'.");
+                }
+            }
 
             string filePath = $@"{userDirectory}\\Downloads\\{userInput}";        
             string logFilePath = $@"{userDirectory}\\Downloads\\soap_service_log.txt"; ; // Log file path
@@ -54,12 +72,20 @@ namespace ConsoleApp_Test
                             Console.WriteLine($"ContractAccountNo: {record.ContractAccountNo}");
 
                             // Prepare the SOAP request for each parameter
-                            string soapRequest = GenerateSoapRequest(record.ContractAccountNo);
-                            string soapRequest2 = GenerateSoapRequest2(record.ContractAccountNo);
+                            string soapRequest = GenerateSoapRequest(record.ContractAccountNo);  // Z_DM_PREMISEADDRESS - PremiseReqSend
+                            string soapRequest2 = GenerateSoapRequest2(record.ContractAccountNo); // Z_CS_SSP_GET_INSTL - InstallationDetailsRequest
 
                             // Send SOAP request to web service endpoint
-                            var response = await SendSoapRequestAsync(httpClient, soapRequest);
-                            var response2 = await SendSoapRequestAsync2(httpClient, soapRequest2);
+                            if (userInput2 == "IST")
+                            {
+                                response = await SendSoapRequestAsync_IST(httpClient, soapRequest);
+                                response2 = await SendSoapRequestAsync2_IST(httpClient, soapRequest2);
+                            }
+                            else
+                            {
+                                response = await SendSoapRequestAsync_ISQ(httpClient, soapRequest);  // TO-UPDATE ISQ URL for PremiseReqSend
+                                response2 = await SendSoapRequestAsync2_ISQ(httpClient, soapRequest2);
+                            }
 
                             // Extract the value of the <Result> tag from the response
                             string resultValue = ExtractResultFromXml(response);
@@ -114,7 +140,7 @@ namespace ConsoleApp_Test
         }
 
         // Method to send the SOAP request
-        private static async Task<string> SendSoapRequestAsync(HttpClient httpClient, string soapRequest)
+        private static async Task<string> SendSoapRequestAsync_IST(HttpClient httpClient, string soapRequest)
         {
             
             // Set up the HttpClientHandler with basic authentication
@@ -148,7 +174,41 @@ namespace ConsoleApp_Test
             }
         }
 
-        private static async Task<string> SendSoapRequestAsync2(HttpClient httpClient, string soapRequest)
+        private static async Task<string> SendSoapRequestAsync_ISQ(HttpClient httpClient, string soapRequest)
+        {
+
+            // Set up the HttpClientHandler with basic authentication
+            var handler = new HttpClientHandler
+            {
+                Credentials = new System.Net.NetworkCredential("PO_SSP_G", "8CrM_SSPQ@01!")
+            };
+
+            using (httpClient = new HttpClient(handler))
+            {
+                // Set up the HTTP request message
+                var requestMessage = new HttpRequestMessage(HttpMethod.Post, "http://bcrmwdqap01.hq.tnb.com.my:50000/XISOAPAdapter/MessageServlet?senderParty=&senderService=SSP_3RD000_Q&receiverParty=&receiverService=&interface=PremiseReqSend_Out&interfaceNamespace=urn:tnb.com.my:BCRM:po:SSP:DM:TMDCreationAndServiceNotification:1.0")
+                {
+                    Content = new StringContent(soapRequest, System.Text.Encoding.UTF8, "text/xml")
+                };
+
+                // Send the SOAP request and get the response
+                var response = await httpClient.SendAsync(requestMessage);
+                string result = await response.Content.ReadAsStringAsync();
+
+                // Read the response content
+                if (response.IsSuccessStatusCode)
+                {
+                    return result;
+                }
+                else
+                {
+                    Console.WriteLine($"Failed to call SOAP service for param: {soapRequest}");
+                    return result;
+                }
+            }
+        }
+
+        private static async Task<string> SendSoapRequestAsync2_IST(HttpClient httpClient, string soapRequest)
         {
 
             // Set up the HttpClientHandler with basic authentication
@@ -161,6 +221,40 @@ namespace ConsoleApp_Test
             {
                 // Set up the HTTP request message
                 var requestMessage = new HttpRequestMessage(HttpMethod.Post, "http://bcrmpitci.hq.tnb.com.my:50100/XISOAPAdapter/MessageServlet?senderParty=&senderService=SSP_3RD000_T&receiverParty=&receiverService=&interface=InstallationDetailsRequest_Out&interfaceNamespace=urn:tnb.com.my:BCRM:po:SSP:CS:AccountManagement:1.0")
+                {
+                    Content = new StringContent(soapRequest, System.Text.Encoding.UTF8, "text/xml")
+                };
+
+                // Send the SOAP request and get the response
+                var response = await httpClient.SendAsync(requestMessage);
+                string result = await response.Content.ReadAsStringAsync();
+
+                // Read the response content
+                if (response.IsSuccessStatusCode)
+                {
+                    return result;
+                }
+                else
+                {
+                    Console.WriteLine($"Failed to call SOAP service for param: {soapRequest}");
+                    return result;
+                }
+            }
+        }
+
+        private static async Task<string> SendSoapRequestAsync2_ISQ(HttpClient httpClient, string soapRequest)
+        {
+
+            // Set up the HttpClientHandler with basic authentication
+            var handler = new HttpClientHandler
+            {
+                Credentials = new System.Net.NetworkCredential("PO_SSP_G", "8CrM_SSPQ@01!")
+            };
+
+            using (httpClient = new HttpClient(handler))
+            {
+                // Set up the HTTP request message
+                var requestMessage = new HttpRequestMessage(HttpMethod.Post, "http://bcrmwdqap01.hq.tnb.com.my:50000/XISOAPAdapter/MessageServlet?senderParty=&senderService=SSP_3RD000_Q&receiverParty=&receiverService=&interface=InstallationDetailsRequest_Out&interfaceNamespace=urn:tnb.com.my:BCRM:po:SSP:CS:AccountManagement:1.0")
                 {
                     Content = new StringContent(soapRequest, System.Text.Encoding.UTF8, "text/xml")
                 };
